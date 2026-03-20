@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Xbox ROM Emulator Lab</title>
+  <style>
+    :root {
+      --bg-1: #06120a;
+      --bg-2: #0b2312;
+      --panel: rgba(15, 30, 20, 0.88);
+      --panel-border: rgba(94, 255, 124, 0.18);
+      --accent: #6dff7b;
+      --accent-2: #22d53c;
+      --text: #effff0;
+      --muted: #9abc9d;
+      --danger: #ff7b7b;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(62, 255, 107, 0.15), transparent 24%),
+        radial-gradient(circle at bottom right, rgba(34, 213, 60, 0.12), transparent 18%),
+        linear-gradient(160deg, var(--bg-1), var(--bg-2) 50%, #050706);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 36px 36px;
+      mask-image: radial-gradient(circle at center, black, transparent 80%);
+      pointer-events: none;
+      opacity: 0.35;
+    }
+
+    .shell {
+      width: min(1180px, calc(100% - 32px));
+      margin: 24px auto;
+      display: grid;
+      gap: 20px;
+      grid-template-columns: 1.3fr 0.95fr;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      overflow: hidden;
+    }
+
+    .hero {
+      grid-column: 1 / -1;
+      padding: 28px;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -110px;
+      top: -110px;
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(109,255,123,0.3), transparent 68%);
+      filter: blur(12px);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      color: #d8ffd9;
+      border: 1px solid rgba(109,255,123,0.18);
+      background: rgba(109,255,123,0.08);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    h1 {
+      margin: 18px 0 12px;
+      font-size: clamp(2rem, 4vw, 4rem);
+      line-height: 0.95;
+      max-width: 10ch;
+    }
+
+    .lead {
+      margin: 0;
+      max-width: 70ch;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 1rem;
+    }
+
+    .hero-grid {
+      margin-top: 24px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .stat {
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.2rem;
+      margin-bottom: 4px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 22px 0;
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      font-size: 1.05rem;
+      letter-spacing: 0.02em;
+    }
+
+    .panel-header span {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .display-wrap { padding: 18px 22px 22px; }
+
+    .screen {
+      position: relative;
+      border-radius: 22px;
+      overflow: hidden;
+      border: 1px solid rgba(109,255,123,0.2);
+      background: #020603;
+      aspect-ratio: 16 / 9;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+    }
+
+    .screen-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,0.12));
+      pointer-events: none;
+    }
+
+    .controls, .library, .telemetry { padding: 18px 22px 22px; }
+
+    .dropzone {
+      display: grid;
+      place-items: center;
+      text-align: center;
+      border: 2px dashed rgba(109,255,123,0.22);
+      border-radius: 20px;
+      min-height: 154px;
+      padding: 18px;
+      background: linear-gradient(180deg, rgba(109,255,123,0.07), rgba(255,255,255,0.02));
+      transition: border-color .2s ease, transform .2s ease, background .2s ease;
+      cursor: pointer;
+    }
+
+    .dropzone.dragover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      background: rgba(109,255,123,0.12);
+    }
+
+    .dropzone input { display: none; }
+
+    .dropzone strong {
+      display: block;
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+    }
+
+    .muted { color: var(--muted); }
+
+    .button-row {
+      margin-top: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .16s ease, filter .16s ease, background .16s ease;
+    }
+
+    button:hover { transform: translateY(-1px); filter: brightness(1.04); }
+    button:active { transform: translateY(1px); }
+
+    .primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #06260d; }
+    .secondary { background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid rgba(255,255,255,0.06); }
+
+    .list {
+      margin: 18px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 12px;
+    }
+
+    .list li {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .list small { color: var(--muted); display: block; margin-top: 4px; }
+
+    .tag {
+      white-space: nowrap;
+      align-self: center;
+      border-radius: 999px;
+      padding: 7px 12px;
+      background: rgba(109,255,123,0.12);
+      border: 1px solid rgba(109,255,123,0.16);
+      color: #c5ffc9;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .telemetry-grid {
+      margin-top: 12px;
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .metric {
+      border-radius: 18px;
+      padding: 16px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .metric b {
+      display: block;
+      font-size: 1.35rem;
+      margin-top: 8px;
+    }
+
+    .legal {
+      grid-column: 1 / -1;
+      padding: 18px 22px;
+      font-size: 0.92rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .legal strong { color: #daffdd; }
+    .good { color: var(--accent); }
+    .warn { color: #ffcf67; }
+    .bad { color: var(--danger); }
+
+    @media (max-width: 920px) {
+      .shell { grid-template-columns: 1fr; }
+      .hero-grid, .telemetry-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="card hero">
+      <div class="badge">Xbox-inspired • Single-file HTML demo</div>
+      <h1>ROM Emulator Control Deck</h1>
+      <p class="lead">
+        This is a self-contained emulator-style interface built in one HTML file. It can load a local ROM file into memory,
+        preview metadata, simulate a running frame buffer, and react to keyboard/controller inputs. It does <strong>not</strong>
+        implement proprietary Xbox hardware emulation.
+      </p>
+      <div class="hero-grid">
+        <div class="stat"><strong>Single file</strong><span class="muted">HTML, CSS, and JavaScript bundled together.</span></div>
+        <div class="stat"><strong>Offline ready</strong><span class="muted">Open it directly in a browser without a build step.</span></div>
+        <div class="stat"><strong>Local-first</strong><span class="muted">ROM files stay in your browser and are never uploaded.</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="panel-header">
+        <h2>Display Surface</h2>
+        <span id="statusText">Idle • waiting for ROM</span>
+      </div>
+      <div class="display-wrap">
+        <div class="screen">
+          <canvas id="screen" width="960" height="540"></canvas>
+          <div class="screen-overlay"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="panel-header">
+        <h2>ROM Loader</h2>
+        <span>Drag & drop or browse</span>
+      </div>
+      <div class="controls">
+        <label class="dropzone" id="dropzone">
+          <input id="romInput" type="file" accept=".iso,.xiso,.bin,.rom,.zip,.7z,.cue,.img" />
+          <div>
+            <strong>Drop a ROM image here</strong>
+            <div class="muted">The file is inspected locally for name, size, checksum, and extension.</div>
+          </div>
+        </label>
+        <div class="button-row">
+          <button class="primary" id="demoBtn">Load Demo Cartridge</button>
+          <button class="secondary" id="pauseBtn">Pause Visualizer</button>
+          <button class="secondary" id="clearBtn">Clear Session</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="panel-header">
+        <h2>Session Library</h2>
+        <span>Recent local loads</span>
+      </div>
+      <div class="library">
+        <ul class="list" id="libraryList"></ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="panel-header">
+        <h2>Runtime Telemetry</h2>
+        <span>Input + rendering diagnostics</span>
+      </div>
+      <div class="telemetry">
+        <div class="telemetry-grid">
+          <div class="metric"><span class="muted">Loaded title</span><b id="romName">No ROM loaded</b></div>
+          <div class="metric"><span class="muted">Payload size</span><b id="romSize">0 bytes</b></div>
+          <div class="metric"><span class="muted">Pseudo checksum</span><b id="romHash">—</b></div>
+          <div class="metric"><span class="muted">Input state</span><b id="inputState">No active input</b></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card legal">
+      <strong>Important:</strong> this page is a stylized emulator dashboard and ROM loader sandbox, not a full Xbox emulator.
+      To run commercial games legally, use software and firmware you are authorized to possess, and only load game dumps you own.
+      Keyboard: arrows / WASD move, <span class="good">Z</span> = A, <span class="good">X</span> = B, <span class="good">Enter</span> = Start.
+    </section>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('screen');
+    const ctx = canvas.getContext('2d');
+    const statusText = document.getElementById('statusText');
+    const romName = document.getElementById('romName');
+    const romSize = document.getElementById('romSize');
+    const romHash = document.getElementById('romHash');
+    const inputState = document.getElementById('inputState');
+    const libraryList = document.getElementById('libraryList');
+    const dropzone = document.getElementById('dropzone');
+    const romInput = document.getElementById('romInput');
+    const demoBtn = document.getElementById('demoBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    const sessionLibrary = [];
+    const pressed = new Set();
+    let running = true;
+    let loadedRom = null;
+    let frame = 0;
+
+    function formatBytes(bytes) {
+      if (!bytes) return '0 bytes';
+      const units = ['bytes', 'KB', 'MB', 'GB'];
+      let value = bytes;
+      let unit = units[0];
+      for (let i = 0; i < units.length && value >= 1024; i++) {
+        unit = units[Math.min(i + 1, units.length - 1)];
+        value = value / 1024;
+      }
+      return `${value.toFixed(value >= 10 ? 1 : 2)} ${unit}`;
+    }
+
+    async function pseudoHash(buffer) {
+      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+      return [...new Uint8Array(hashBuffer)].slice(0, 8).map(x => x.toString(16).padStart(2, '0')).join('').toUpperCase();
+    }
+
+    function updateLibrary() {
+      if (!sessionLibrary.length) {
+        libraryList.innerHTML = '<li><div><strong>No local sessions yet</strong><small>Load a ROM or start the built-in demo cartridge.</small></div><span class="tag">Empty</span></li>';
+        return;
+      }
+      libraryList.innerHTML = sessionLibrary.map(item => `
+        <li>
+          <div>
+            <strong>${item.name}</strong>
+            <small>${item.ext} • ${item.size} • ${item.hash}</small>
+          </div>
+          <span class="tag">${item.source}</span>
+        </li>
+      `).join('');
+    }
+
+    function setLoadedRom(meta) {
+      loadedRom = meta;
+      romName.textContent = meta.name;
+      romSize.textContent = meta.size;
+      romHash.textContent = meta.hash;
+      statusText.textContent = `Running • ${meta.name}`;
+      sessionLibrary.unshift(meta);
+      sessionLibrary.splice(6);
+      updateLibrary();
+    }
+
+    async function handleFile(file, source = 'Local') {
+      const buffer = await file.arrayBuffer();
+      const hash = await pseudoHash(buffer);
+      const ext = (file.name.split('.').pop() || 'unknown').toUpperCase();
+      setLoadedRom({
+        name: file.name,
+        size: formatBytes(file.size),
+        hash,
+        ext,
+        source,
+        rawSize: file.size
+      });
+    }
+
+    function createDemoBuffer() {
+      const bytes = new Uint8Array(4096);
+      for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = (i * 31 + 17) % 255;
+      }
+      return new File([bytes], 'halo-lab-demo.rom', { type: 'application/octet-stream' });
+    }
+
+    function drawScene() {
+      const w = canvas.width;
+      const h = canvas.height;
+      const glow = loadedRom ? 1 : 0.35;
+      const speed = loadedRom ? 1.4 : 0.7;
+      frame += running ? speed : 0;
+
+      const gradient = ctx.createLinearGradient(0, 0, w, h);
+      gradient.addColorStop(0, `rgba(3, 14, 8, ${0.96})`);
+      gradient.addColorStop(1, `rgba(13, 48, 22, ${0.98})`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+
+      for (let i = 0; i < 9; i++) {
+        ctx.strokeStyle = `rgba(109,255,123, ${0.03 + i * 0.01})`;
+        ctx.beginPath();
+        const y = h * (i / 9) + Math.sin(frame * 0.02 + i) * 8;
+        ctx.moveTo(0, y);
+        ctx.bezierCurveTo(w * 0.25, y + 30, w * 0.65, y - 30, w, y + 10);
+        ctx.stroke();
+      }
+
+      const orbX = w / 2 + Math.sin(frame * 0.03) * 170;
+      const orbY = h / 2 + Math.cos(frame * 0.025) * 90;
+      const orbRadius = 82 + Math.sin(frame * 0.07) * 8;
+      const orb = ctx.createRadialGradient(orbX, orbY, 0, orbX, orbY, orbRadius * 1.35);
+      orb.addColorStop(0, `rgba(109,255,123, ${0.45 * glow})`);
+      orb.addColorStop(0.5, `rgba(50, 224, 81, ${0.18 * glow})`);
+      orb.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = orb;
+      ctx.beginPath();
+      ctx.arc(orbX, orbY, orbRadius * 1.35, 0, Math.PI * 2);
+      ctx.fill();
+
+      const title = loadedRom ? loadedRom.name : 'Insert ROM to initialize';
+      const subtitle = loadedRom ? `Hash ${loadedRom.hash}` : 'Single-file emulator dashboard';
+      ctx.fillStyle = '#eaffed';
+      ctx.font = 'bold 34px Segoe UI, sans-serif';
+      ctx.fillText(title.slice(0, 28), 44, 66);
+      ctx.fillStyle = 'rgba(234,255,237,0.72)';
+      ctx.font = '22px Segoe UI, sans-serif';
+      ctx.fillText(subtitle, 44, 100);
+
+      ctx.strokeStyle = 'rgba(109,255,123,0.18)';
+      ctx.strokeRect(28, 28, w - 56, h - 56);
+
+      const bars = 42;
+      for (let i = 0; i < bars; i++) {
+        const x = 40 + i * 20;
+        const barHeight = 20 + Math.abs(Math.sin(frame * 0.08 + i * 0.45)) * 120 * glow;
+        ctx.fillStyle = `rgba(109,255,123,${0.25 + (i % 6) * 0.06})`;
+        ctx.fillRect(x, h - 70 - barHeight, 12, barHeight);
+      }
+
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fillRect(40, h - 170, w - 80, 2);
+
+      requestAnimationFrame(drawScene);
+    }
+
+    function refreshInputState() {
+      inputState.textContent = pressed.size ? [...pressed].join(', ') : 'No active input';
+    }
+
+    ['dragenter', 'dragover'].forEach(type => dropzone.addEventListener(type, event => {
+      event.preventDefault();
+      dropzone.classList.add('dragover');
+    }));
+
+    ['dragleave', 'drop'].forEach(type => dropzone.addEventListener(type, event => {
+      event.preventDefault();
+      dropzone.classList.remove('dragover');
+    }));
+
+    dropzone.addEventListener('drop', event => {
+      const [file] = event.dataTransfer.files;
+      if (file) handleFile(file);
+    });
+
+    romInput.addEventListener('change', event => {
+      const [file] = event.target.files;
+      if (file) handleFile(file);
+    });
+
+    demoBtn.addEventListener('click', async () => {
+      await handleFile(createDemoBuffer(), 'Demo');
+    });
+
+    pauseBtn.addEventListener('click', () => {
+      running = !running;
+      pauseBtn.textContent = running ? 'Pause Visualizer' : 'Resume Visualizer';
+      statusText.textContent = `${running ? 'Running' : 'Paused'} • ${loadedRom ? loadedRom.name : 'no ROM loaded'}`;
+    });
+
+    clearBtn.addEventListener('click', () => {
+      loadedRom = null;
+      sessionLibrary.length = 0;
+      romName.textContent = 'No ROM loaded';
+      romSize.textContent = '0 bytes';
+      romHash.textContent = '—';
+      statusText.textContent = 'Idle • waiting for ROM';
+      romInput.value = '';
+      updateLibrary();
+    });
+
+    const keyMap = {
+      ArrowUp: 'D-Pad Up',
+      ArrowDown: 'D-Pad Down',
+      ArrowLeft: 'D-Pad Left',
+      ArrowRight: 'D-Pad Right',
+      w: 'Left Stick Up',
+      a: 'Left Stick Left',
+      s: 'Left Stick Down',
+      d: 'Left Stick Right',
+      z: 'A',
+      x: 'B',
+      c: 'X',
+      v: 'Y',
+      Enter: 'Start',
+      Shift: 'Back'
+    };
+
+    window.addEventListener('keydown', event => {
+      const key = keyMap[event.key] || keyMap[event.key.toLowerCase?.()];
+      if (!key) return;
+      pressed.add(key);
+      refreshInputState();
+    });
+
+    window.addEventListener('keyup', event => {
+      const key = keyMap[event.key] || keyMap[event.key.toLowerCase?.()];
+      if (!key) return;
+      pressed.delete(key);
+      refreshInputState();
+    });
+
+    updateLibrary();
+    drawScene();
+  </script>
+</body>
+</html>
