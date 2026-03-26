@@ -3,611 +3,469 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Xbox ROM Emulator Lab</title>
+  <title>Eagler-Inspired Multiplayer Voxels</title>
   <style>
     :root {
-      --bg-1: #06120a;
-      --bg-2: #0b2312;
-      --panel: rgba(15, 30, 20, 0.88);
-      --panel-border: rgba(94, 255, 124, 0.18);
-      --accent: #6dff7b;
-      --accent-2: #22d53c;
-      --text: #effff0;
-      --muted: #9abc9d;
-      --danger: #ff7b7b;
-      --shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
-      color-scheme: dark;
+      --bg: #111827;
+      --panel: rgba(17, 24, 39, 0.92);
+      --line: #374151;
+      --text: #f3f4f6;
+      --accent: #22c55e;
     }
-
     * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; }
+    #game { width: 100vw; height: 100vh; display: block; }
 
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background:
-        radial-gradient(circle at top, rgba(62, 255, 107, 0.15), transparent 24%),
-        radial-gradient(circle at bottom right, rgba(34, 213, 60, 0.12), transparent 18%),
-        linear-gradient(160deg, var(--bg-1), var(--bg-2) 50%, #050706);
-      color: var(--text);
-      overflow-x: hidden;
-    }
-
-    body::before {
-      content: "";
+    .hud {
       position: fixed;
       inset: 0;
-      background:
-        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-      background-size: 36px 36px;
-      mask-image: radial-gradient(circle at center, black, transparent 80%);
       pointer-events: none;
-      opacity: 0.35;
-    }
-
-    .shell {
-      width: min(1180px, calc(100% - 32px));
-      margin: 24px auto;
       display: grid;
-      gap: 20px;
-      grid-template-columns: 1.3fr 0.95fr;
+      grid-template-rows: auto 1fr auto;
+      padding: 14px;
     }
-
-    .card {
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .panel {
+      pointer-events: auto;
       background: var(--panel);
-      border: 1px solid var(--panel-border);
-      border-radius: 24px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(18px);
-      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      backdrop-filter: blur(10px);
+      max-width: min(480px, 92vw);
     }
+    .panel h1 { margin: 0 0 8px; font-size: 1rem; }
+    .panel p, .panel li { margin: 0; font-size: 0.86rem; line-height: 1.35; color: #d1d5db; }
+    .panel ul { margin: 8px 0 0 16px; padding: 0; }
+    .row { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; }
+    input, button {
+      background: #1f2937;
+      color: var(--text);
+      border: 1px solid #4b5563;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font: inherit;
+    }
+    button { cursor: pointer; }
+    button:hover { border-color: var(--accent); }
+    .status { font-size: 0.78rem; color: #93c5fd; margin-top: 8px; }
 
-    .hero {
-      grid-column: 1 / -1;
-      padding: 28px;
+    .crosshair {
+      align-self: center;
+      justify-self: center;
+      width: 24px;
+      height: 24px;
       position: relative;
     }
-
-    .hero::after {
+    .crosshair::before, .crosshair::after {
       content: "";
       position: absolute;
-      right: -110px;
-      top: -110px;
-      width: 280px;
-      height: 280px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(109,255,123,0.3), transparent 68%);
-      filter: blur(12px);
+      background: #fff;
+      opacity: 0.95;
     }
+    .crosshair::before { width: 2px; height: 24px; left: 11px; top: 0; }
+    .crosshair::after { height: 2px; width: 24px; top: 11px; left: 0; }
 
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 14px;
-      border-radius: 999px;
-      color: #d8ffd9;
-      border: 1px solid rgba(109,255,123,0.18);
-      background: rgba(109,255,123,0.08);
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      font-size: 0.72rem;
-      font-weight: 800;
-    }
-
-    h1 {
-      margin: 18px 0 12px;
-      font-size: clamp(2rem, 4vw, 4rem);
-      line-height: 0.95;
-      max-width: 10ch;
-    }
-
-    .lead {
-      margin: 0;
-      max-width: 70ch;
-      color: var(--muted);
-      line-height: 1.65;
-      font-size: 1rem;
-    }
-
-    .hero-grid {
-      margin-top: 24px;
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
-    }
-
-    .stat {
-      padding: 16px 18px;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.06);
-      background: rgba(255,255,255,0.03);
-    }
-
-    .stat strong {
-      display: block;
-      font-size: 1.2rem;
-      margin-bottom: 4px;
-    }
-
-    .panel-header {
+    .hotbar {
+      pointer-events: auto;
+      justify-self: center;
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 20px 22px 0;
+      gap: 8px;
+      margin-bottom: 6px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px;
     }
-
-    .panel-header h2 {
-      margin: 0;
-      font-size: 1.05rem;
-      letter-spacing: 0.02em;
-    }
-
-    .panel-header span {
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-
-    .display-wrap { padding: 18px 22px 22px; }
-
-    .screen {
-      position: relative;
-      border-radius: 22px;
-      overflow: hidden;
-      border: 1px solid rgba(109,255,123,0.2);
-      background: #020603;
-      aspect-ratio: 16 / 9;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
-    }
-
-    canvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-      image-rendering: pixelated;
-    }
-
-    .screen-overlay {
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(transparent, rgba(0,0,0,0.12));
-      pointer-events: none;
-    }
-
-    .controls, .library, .telemetry { padding: 18px 22px 22px; }
-
-    .dropzone {
+    .slot {
+      width: 56px;
+      height: 56px;
       display: grid;
       place-items: center;
+      border: 2px solid #4b5563;
+      border-radius: 8px;
+      font-size: 0.75rem;
       text-align: center;
-      border: 2px dashed rgba(109,255,123,0.22);
-      border-radius: 20px;
-      min-height: 154px;
-      padding: 18px;
-      background: linear-gradient(180deg, rgba(109,255,123,0.07), rgba(255,255,255,0.02));
-      transition: border-color .2s ease, transform .2s ease, background .2s ease;
-      cursor: pointer;
+      user-select: none;
     }
+    .slot.active { border-color: var(--accent); background: rgba(34, 197, 94, 0.2); }
 
-    .dropzone.dragover {
-      border-color: var(--accent);
-      transform: translateY(-2px);
-      background: rgba(109,255,123,0.12);
-    }
-
-    .dropzone input { display: none; }
-
-    .dropzone strong {
-      display: block;
-      font-size: 1.05rem;
-      margin-bottom: 6px;
-    }
-
-    .muted { color: var(--muted); }
-
-    .button-row {
-      margin-top: 16px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-
-    button {
-      appearance: none;
-      border: 0;
-      border-radius: 999px;
-      padding: 12px 18px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: transform .16s ease, filter .16s ease, background .16s ease;
-    }
-
-    button:hover { transform: translateY(-1px); filter: brightness(1.04); }
-    button:active { transform: translateY(1px); }
-
-    .primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #06260d; }
-    .secondary { background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid rgba(255,255,255,0.06); }
-
-    .list {
-      margin: 18px 0 0;
-      padding: 0;
-      list-style: none;
-      display: grid;
-      gap: 12px;
-    }
-
-    .list li {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 14px 16px;
-      border-radius: 16px;
-      background: rgba(255,255,255,0.035);
-      border: 1px solid rgba(255,255,255,0.05);
-    }
-
-    .list small { color: var(--muted); display: block; margin-top: 4px; }
-
-    .tag {
-      white-space: nowrap;
-      align-self: center;
-      border-radius: 999px;
-      padding: 7px 12px;
-      background: rgba(109,255,123,0.12);
-      border: 1px solid rgba(109,255,123,0.16);
-      color: #c5ffc9;
-      font-size: 0.8rem;
-      font-weight: 700;
-    }
-
-    .telemetry-grid {
-      margin-top: 12px;
-      display: grid;
-      gap: 12px;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .metric {
-      border-radius: 18px;
-      padding: 16px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.05);
-    }
-
-    .metric b {
-      display: block;
-      font-size: 1.35rem;
-      margin-top: 8px;
-    }
-
-    .legal {
-      grid-column: 1 / -1;
-      padding: 18px 22px;
-      font-size: 0.92rem;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-
-    .legal strong { color: #daffdd; }
-    .good { color: var(--accent); }
-    .warn { color: #ffcf67; }
-    .bad { color: var(--danger); }
-
-    @media (max-width: 920px) {
-      .shell { grid-template-columns: 1fr; }
-      .hero-grid, .telemetry-grid { grid-template-columns: 1fr; }
-    }
+    #textureInput { display: none; }
   </style>
 </head>
 <body>
-  <main class="shell">
-    <section class="card hero">
-      <div class="badge">Xbox-inspired • Single-file HTML demo</div>
-      <h1>ROM Emulator Control Deck</h1>
-      <p class="lead">
-        This is a self-contained emulator-style interface built in one HTML file. It can load a local ROM file into memory,
-        preview metadata, simulate a running frame buffer, and react to keyboard/controller inputs. It does <strong>not</strong>
-        implement proprietary Xbox hardware emulation.
-      </p>
-      <div class="hero-grid">
-        <div class="stat"><strong>Single file</strong><span class="muted">HTML, CSS, and JavaScript bundled together.</span></div>
-        <div class="stat"><strong>Offline ready</strong><span class="muted">Open it directly in a browser without a build step.</span></div>
-        <div class="stat"><strong>Local-first</strong><span class="muted">ROM files stay in your browser and are never uploaded.</span></div>
-      </div>
-    </section>
+  <canvas id="game"></canvas>
 
-    <section class="card">
-      <div class="panel-header">
-        <h2>Display Surface</h2>
-        <span id="statusText">Idle • waiting for ROM</span>
-      </div>
-      <div class="display-wrap">
-        <div class="screen">
-          <canvas id="screen" width="960" height="540"></canvas>
-          <div class="screen-overlay"></div>
+  <div class="hud">
+    <div class="top">
+      <div class="panel">
+        <h1>Voxel Online (Eagler-style controls)</h1>
+        <p>Click the game to lock mouse. WASD move, Space jump, Shift sneak, left click break, right click place, 1-4 select block, scroll switches slots.</p>
+        <ul>
+          <li>Designed to feel like classic browser-block gameplay.</li>
+          <li>Multiplayer with shared block edits + remote players.</li>
+          <li>Upload a custom block texture for your selected slot.</li>
+        </ul>
+        <div class="row">
+          <input id="nameInput" maxlength="16" placeholder="Player name" value="Player" />
+          <input id="roomInput" maxlength="32" placeholder="Room id" value="lobby" />
+          <button id="joinBtn">Join room</button>
+          <button id="texBtn">Upload texture</button>
+          <input id="textureInput" type="file" accept="image/*" />
         </div>
+        <div class="status" id="status">Not connected.</div>
       </div>
-    </section>
+    </div>
 
-    <section class="card">
-      <div class="panel-header">
-        <h2>ROM Loader</h2>
-        <span>Drag & drop or browse</span>
-      </div>
-      <div class="controls">
-        <label class="dropzone" id="dropzone">
-          <input id="romInput" type="file" accept=".iso,.xiso,.bin,.rom,.zip,.7z,.cue,.img" />
-          <div>
-            <strong>Drop a ROM image here</strong>
-            <div class="muted">The file is inspected locally for name, size, checksum, and extension.</div>
-          </div>
-        </label>
-        <div class="button-row">
-          <button class="primary" id="demoBtn">Load Demo Cartridge</button>
-          <button class="secondary" id="pauseBtn">Pause Visualizer</button>
-          <button class="secondary" id="clearBtn">Clear Session</button>
-        </div>
-      </div>
-    </section>
+    <div class="crosshair"></div>
 
-    <section class="card">
-      <div class="panel-header">
-        <h2>Session Library</h2>
-        <span>Recent local loads</span>
-      </div>
-      <div class="library">
-        <ul class="list" id="libraryList"></ul>
-      </div>
-    </section>
+    <div class="hotbar" id="hotbar"></div>
+  </div>
 
-    <section class="card">
-      <div class="panel-header">
-        <h2>Runtime Telemetry</h2>
-        <span>Input + rendering diagnostics</span>
-      </div>
-      <div class="telemetry">
-        <div class="telemetry-grid">
-          <div class="metric"><span class="muted">Loaded title</span><b id="romName">No ROM loaded</b></div>
-          <div class="metric"><span class="muted">Payload size</span><b id="romSize">0 bytes</b></div>
-          <div class="metric"><span class="muted">Pseudo checksum</span><b id="romHash">—</b></div>
-          <div class="metric"><span class="muted">Input state</span><b id="inputState">No active input</b></div>
-        </div>
-      </div>
-    </section>
+  <script type="module">
+    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.161/build/three.module.js";
+    import { PointerLockControls } from "https://cdn.jsdelivr.net/npm/three@0.161/examples/jsm/controls/PointerLockControls.js";
+    import { io } from "https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/+esm";
 
-    <section class="card legal">
-      <strong>Important:</strong> this page is a stylized emulator dashboard and ROM loader sandbox, not a full Xbox emulator.
-      To run commercial games legally, use software and firmware you are authorized to possess, and only load game dumps you own.
-      Keyboard: arrows / WASD move, <span class="good">Z</span> = A, <span class="good">X</span> = B, <span class="good">Enter</span> = Start.
-    </section>
-  </main>
+    const BLOCK_TYPES = [
+      { name: "Grass", colorTop: "#4ade80", colorSide: "#65a30d", colorBottom: "#a16207" },
+      { name: "Stone", colorTop: "#9ca3af", colorSide: "#6b7280", colorBottom: "#4b5563" },
+      { name: "Wood", colorTop: "#d4a373", colorSide: "#9a5d34", colorBottom: "#7c4727" },
+      { name: "Glow", colorTop: "#fde68a", colorSide: "#f59e0b", colorBottom: "#b45309", emissive: true }
+    ];
 
-  <script>
-    const canvas = document.getElementById('screen');
-    const ctx = canvas.getContext('2d');
-    const statusText = document.getElementById('statusText');
-    const romName = document.getElementById('romName');
-    const romSize = document.getElementById('romSize');
-    const romHash = document.getElementById('romHash');
-    const inputState = document.getElementById('inputState');
-    const libraryList = document.getElementById('libraryList');
-    const dropzone = document.getElementById('dropzone');
-    const romInput = document.getElementById('romInput');
-    const demoBtn = document.getElementById('demoBtn');
-    const pauseBtn = document.getElementById('pauseBtn');
-    const clearBtn = document.getElementById('clearBtn');
+    const canvas = document.getElementById("game");
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
 
-    const sessionLibrary = [];
-    const pressed = new Set();
-    let running = true;
-    let loadedRom = null;
-    let frame = 0;
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color("#7dd3fc");
+    scene.fog = new THREE.Fog("#7dd3fc", 30, 115);
 
-    function formatBytes(bytes) {
-      if (!bytes) return '0 bytes';
-      const units = ['bytes', 'KB', 'MB', 'GB'];
-      let value = bytes;
-      let unit = units[0];
-      for (let i = 0; i < units.length && value >= 1024; i++) {
-        unit = units[Math.min(i + 1, units.length - 1)];
-        value = value / 1024;
-      }
-      return `${value.toFixed(value >= 10 ? 1 : 2)} ${unit}`;
-    }
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 300);
+    camera.position.set(0, 8, 18);
 
-    async function pseudoHash(buffer) {
-      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-      return [...new Uint8Array(hashBuffer)].slice(0, 8).map(x => x.toString(16).padStart(2, '0')).join('').toUpperCase();
-    }
-
-    function updateLibrary() {
-      if (!sessionLibrary.length) {
-        libraryList.innerHTML = '<li><div><strong>No local sessions yet</strong><small>Load a ROM or start the built-in demo cartridge.</small></div><span class="tag">Empty</span></li>';
-        return;
-      }
-      libraryList.innerHTML = sessionLibrary.map(item => `
-        <li>
-          <div>
-            <strong>${item.name}</strong>
-            <small>${item.ext} • ${item.size} • ${item.hash}</small>
-          </div>
-          <span class="tag">${item.source}</span>
-        </li>
-      `).join('');
-    }
-
-    function setLoadedRom(meta) {
-      loadedRom = meta;
-      romName.textContent = meta.name;
-      romSize.textContent = meta.size;
-      romHash.textContent = meta.hash;
-      statusText.textContent = `Running • ${meta.name}`;
-      sessionLibrary.unshift(meta);
-      sessionLibrary.splice(6);
-      updateLibrary();
-    }
-
-    async function handleFile(file, source = 'Local') {
-      const buffer = await file.arrayBuffer();
-      const hash = await pseudoHash(buffer);
-      const ext = (file.name.split('.').pop() || 'unknown').toUpperCase();
-      setLoadedRom({
-        name: file.name,
-        size: formatBytes(file.size),
-        hash,
-        ext,
-        source,
-        rawSize: file.size
-      });
-    }
-
-    function createDemoBuffer() {
-      const bytes = new Uint8Array(4096);
-      for (let i = 0; i < bytes.length; i++) {
-        bytes[i] = (i * 31 + 17) % 255;
-      }
-      return new File([bytes], 'halo-lab-demo.rom', { type: 'application/octet-stream' });
-    }
-
-    function drawScene() {
-      const w = canvas.width;
-      const h = canvas.height;
-      const glow = loadedRom ? 1 : 0.35;
-      const speed = loadedRom ? 1.4 : 0.7;
-      frame += running ? speed : 0;
-
-      const gradient = ctx.createLinearGradient(0, 0, w, h);
-      gradient.addColorStop(0, `rgba(3, 14, 8, ${0.96})`);
-      gradient.addColorStop(1, `rgba(13, 48, 22, ${0.98})`);
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, w, h);
-
-      for (let i = 0; i < 9; i++) {
-        ctx.strokeStyle = `rgba(109,255,123, ${0.03 + i * 0.01})`;
-        ctx.beginPath();
-        const y = h * (i / 9) + Math.sin(frame * 0.02 + i) * 8;
-        ctx.moveTo(0, y);
-        ctx.bezierCurveTo(w * 0.25, y + 30, w * 0.65, y - 30, w, y + 10);
-        ctx.stroke();
-      }
-
-      const orbX = w / 2 + Math.sin(frame * 0.03) * 170;
-      const orbY = h / 2 + Math.cos(frame * 0.025) * 90;
-      const orbRadius = 82 + Math.sin(frame * 0.07) * 8;
-      const orb = ctx.createRadialGradient(orbX, orbY, 0, orbX, orbY, orbRadius * 1.35);
-      orb.addColorStop(0, `rgba(109,255,123, ${0.45 * glow})`);
-      orb.addColorStop(0.5, `rgba(50, 224, 81, ${0.18 * glow})`);
-      orb.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = orb;
-      ctx.beginPath();
-      ctx.arc(orbX, orbY, orbRadius * 1.35, 0, Math.PI * 2);
-      ctx.fill();
-
-      const title = loadedRom ? loadedRom.name : 'Insert ROM to initialize';
-      const subtitle = loadedRom ? `Hash ${loadedRom.hash}` : 'Single-file emulator dashboard';
-      ctx.fillStyle = '#eaffed';
-      ctx.font = 'bold 34px Segoe UI, sans-serif';
-      ctx.fillText(title.slice(0, 28), 44, 66);
-      ctx.fillStyle = 'rgba(234,255,237,0.72)';
-      ctx.font = '22px Segoe UI, sans-serif';
-      ctx.fillText(subtitle, 44, 100);
-
-      ctx.strokeStyle = 'rgba(109,255,123,0.18)';
-      ctx.strokeRect(28, 28, w - 56, h - 56);
-
-      const bars = 42;
-      for (let i = 0; i < bars; i++) {
-        const x = 40 + i * 20;
-        const barHeight = 20 + Math.abs(Math.sin(frame * 0.08 + i * 0.45)) * 120 * glow;
-        ctx.fillStyle = `rgba(109,255,123,${0.25 + (i % 6) * 0.06})`;
-        ctx.fillRect(x, h - 70 - barHeight, 12, barHeight);
-      }
-
-      ctx.fillStyle = 'rgba(255,255,255,0.08)';
-      ctx.fillRect(40, h - 170, w - 80, 2);
-
-      requestAnimationFrame(drawScene);
-    }
-
-    function refreshInputState() {
-      inputState.textContent = pressed.size ? [...pressed].join(', ') : 'No active input';
-    }
-
-    ['dragenter', 'dragover'].forEach(type => dropzone.addEventListener(type, event => {
-      event.preventDefault();
-      dropzone.classList.add('dragover');
-    }));
-
-    ['dragleave', 'drop'].forEach(type => dropzone.addEventListener(type, event => {
-      event.preventDefault();
-      dropzone.classList.remove('dragover');
-    }));
-
-    dropzone.addEventListener('drop', event => {
-      const [file] = event.dataTransfer.files;
-      if (file) handleFile(file);
+    const controls = new PointerLockControls(camera, document.body);
+    document.body.addEventListener("click", (e) => {
+      if (!controls.isLocked && e.target.tagName !== "BUTTON" && e.target.tagName !== "INPUT") controls.lock();
     });
 
-    romInput.addEventListener('change', event => {
-      const [file] = event.target.files;
-      if (file) handleFile(file);
-    });
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x334155, 0.95));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+    sun.position.set(40, 90, 10);
+    scene.add(sun);
 
-    demoBtn.addEventListener('click', async () => {
-      await handleFile(createDemoBuffer(), 'Demo');
-    });
+    const textureLoader = new THREE.TextureLoader();
+    const worldRoot = new THREE.Group();
+    scene.add(worldRoot);
 
-    pauseBtn.addEventListener('click', () => {
-      running = !running;
-      pauseBtn.textContent = running ? 'Pause Visualizer' : 'Resume Visualizer';
-      statusText.textContent = `${running ? 'Running' : 'Paused'} • ${loadedRom ? loadedRom.name : 'no ROM loaded'}`;
-    });
+    const worldBlocks = new Map();
+    const blockMeshes = new Map();
 
-    clearBtn.addEventListener('click', () => {
-      loadedRom = null;
-      sessionLibrary.length = 0;
-      romName.textContent = 'No ROM loaded';
-      romSize.textContent = '0 bytes';
-      romHash.textContent = '—';
-      statusText.textContent = 'Idle • waiting for ROM';
-      romInput.value = '';
-      updateLibrary();
-    });
+    const key = (x, y, z) => `${x},${y},${z}`;
 
-    const keyMap = {
-      ArrowUp: 'D-Pad Up',
-      ArrowDown: 'D-Pad Down',
-      ArrowLeft: 'D-Pad Left',
-      ArrowRight: 'D-Pad Right',
-      w: 'Left Stick Up',
-      a: 'Left Stick Left',
-      s: 'Left Stick Down',
-      d: 'Left Stick Right',
-      z: 'A',
-      x: 'B',
-      c: 'X',
-      v: 'Y',
-      Enter: 'Start',
-      Shift: 'Back'
+    function makeBlockMaterials(def) {
+      if (def.customTexture) {
+        const t = def.customTexture;
+        t.magFilter = THREE.NearestFilter;
+        t.minFilter = THREE.NearestMipmapNearestFilter;
+        return Array.from({ length: 6 }, () => new THREE.MeshLambertMaterial({ map: t }));
+      }
+      return [
+        new THREE.MeshLambertMaterial({ color: def.colorSide, emissive: def.emissive ? def.colorSide : "#000000" }),
+        new THREE.MeshLambertMaterial({ color: def.colorSide, emissive: def.emissive ? def.colorSide : "#000000" }),
+        new THREE.MeshLambertMaterial({ color: def.colorTop, emissive: def.emissive ? def.colorTop : "#000000" }),
+        new THREE.MeshLambertMaterial({ color: def.colorBottom, emissive: def.emissive ? def.colorBottom : "#000000" }),
+        new THREE.MeshLambertMaterial({ color: def.colorSide, emissive: def.emissive ? def.colorSide : "#000000" }),
+        new THREE.MeshLambertMaterial({ color: def.colorSide, emissive: def.emissive ? def.colorSide : "#000000" })
+      ];
+    }
+
+    const cubeGeo = new THREE.BoxGeometry(1, 1, 1);
+
+    function setBlock(x, y, z, blockTypeIndex, fromNetwork = false) {
+      const k = key(x, y, z);
+      worldBlocks.set(k, blockTypeIndex);
+
+      const existing = blockMeshes.get(k);
+      if (existing) {
+        worldRoot.remove(existing);
+        existing.geometry.dispose();
+      }
+
+      const def = BLOCK_TYPES[blockTypeIndex];
+      const mesh = new THREE.Mesh(cubeGeo, makeBlockMaterials(def));
+      mesh.position.set(x, y, z);
+      mesh.userData.block = { x, y, z };
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      worldRoot.add(mesh);
+      blockMeshes.set(k, mesh);
+
+      if (!fromNetwork && socket?.connected) {
+        socket.emit("setBlock", { x, y, z, blockTypeIndex, roomId: roomInput.value.trim() || "lobby" });
+      }
+    }
+
+    function removeBlock(x, y, z, fromNetwork = false) {
+      const k = key(x, y, z);
+      worldBlocks.delete(k);
+      const existing = blockMeshes.get(k);
+      if (existing) {
+        worldRoot.remove(existing);
+        blockMeshes.delete(k);
+      }
+      if (!fromNetwork && socket?.connected) {
+        socket.emit("removeBlock", { x, y, z, roomId: roomInput.value.trim() || "lobby" });
+      }
+    }
+
+    function seedWorld() {
+      for (let x = -25; x <= 25; x++) {
+        for (let z = -25; z <= 25; z++) {
+          setBlock(x, 0, z, 0, true);
+          if ((x + z) % 11 === 0) setBlock(x, 1, z, 1, true);
+        }
+      }
+      for (let y = 1; y < 5; y++) setBlock(5, y, 5, 2, true);
+      setBlock(-5, 1, -3, 3, true);
+    }
+
+    seedWorld();
+
+    const player = {
+      velocity: new THREE.Vector3(),
+      direction: new THREE.Vector3(),
+      onGround: false,
+      speed: 9,
+      sprint: false
     };
 
-    window.addEventListener('keydown', event => {
-      const key = keyMap[event.key] || keyMap[event.key.toLowerCase?.()];
-      if (!key) return;
-      pressed.add(key);
-      refreshInputState();
+    const move = { f: false, b: false, l: false, r: false, jump: false, sneak: false };
+
+    document.addEventListener("keydown", (e) => {
+      if (e.repeat) return;
+      if (e.code === "KeyW") move.f = true;
+      if (e.code === "KeyS") move.b = true;
+      if (e.code === "KeyA") move.l = true;
+      if (e.code === "KeyD") move.r = true;
+      if (e.code === "Space") move.jump = true;
+      if (e.code === "ShiftLeft") move.sneak = true;
+      if (e.code === "Digit1") setSelected(0);
+      if (e.code === "Digit2") setSelected(1);
+      if (e.code === "Digit3") setSelected(2);
+      if (e.code === "Digit4") setSelected(3);
+    });
+    document.addEventListener("keyup", (e) => {
+      if (e.code === "KeyW") move.f = false;
+      if (e.code === "KeyS") move.b = false;
+      if (e.code === "KeyA") move.l = false;
+      if (e.code === "KeyD") move.r = false;
+      if (e.code === "Space") move.jump = false;
+      if (e.code === "ShiftLeft") move.sneak = false;
     });
 
-    window.addEventListener('keyup', event => {
-      const key = keyMap[event.key] || keyMap[event.key.toLowerCase?.()];
-      if (!key) return;
-      pressed.delete(key);
-      refreshInputState();
+    let selectedBlock = 0;
+    const hotbar = document.getElementById("hotbar");
+    function renderHotbar() {
+      hotbar.innerHTML = "";
+      BLOCK_TYPES.forEach((b, i) => {
+        const d = document.createElement("div");
+        d.className = "slot" + (i === selectedBlock ? " active" : "");
+        d.textContent = `${i + 1} ${b.name}`;
+        hotbar.appendChild(d);
+      });
+    }
+    function setSelected(idx) {
+      selectedBlock = Math.max(0, Math.min(BLOCK_TYPES.length - 1, idx));
+      renderHotbar();
+    }
+    window.addEventListener("wheel", (e) => {
+      const delta = Math.sign(e.deltaY);
+      setSelected((selectedBlock + delta + BLOCK_TYPES.length) % BLOCK_TYPES.length);
+    });
+    renderHotbar();
+
+    const raycaster = new THREE.Raycaster();
+    window.addEventListener("contextmenu", (e) => e.preventDefault());
+    window.addEventListener("mousedown", (e) => {
+      if (!controls.isLocked) return;
+      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+      const intersects = raycaster.intersectObjects([...blockMeshes.values()], false);
+      if (!intersects.length) return;
+      const hit = intersects[0];
+      const { x, y, z } = hit.object.userData.block;
+
+      if (e.button === 0) {
+        if (y > 0) removeBlock(x, y, z);
+      }
+      if (e.button === 2) {
+        const p = hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5));
+        const nx = Math.round(p.x), ny = Math.round(p.y), nz = Math.round(p.z);
+        if (ny < 1 || ny > 60) return;
+        const nearPlayer = camera.position.distanceTo(new THREE.Vector3(nx, ny, nz)) < 1.4;
+        if (!nearPlayer) setBlock(nx, ny, nz, selectedBlock);
+      }
     });
 
-    updateLibrary();
-    drawScene();
+    const remotePlayers = new Map();
+    function upsertRemotePlayer(id, state) {
+      let playerObj = remotePlayers.get(id);
+      if (!playerObj) {
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.75, 1.75, 0.5), new THREE.MeshLambertMaterial({ color: "#60a5fa" }));
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshLambertMaterial({ color: "#93c5fd" }));
+        head.position.y = 1.15;
+        const group = new THREE.Group();
+        group.add(body);
+        group.add(head);
+        scene.add(group);
+
+        const tag = document.createElement("div");
+        tag.style.position = "fixed";
+        tag.style.fontSize = "12px";
+        tag.style.background = "rgba(17,24,39,0.85)";
+        tag.style.padding = "3px 6px";
+        tag.style.border = "1px solid #4b5563";
+        tag.style.borderRadius = "6px";
+        tag.style.pointerEvents = "none";
+        document.body.appendChild(tag);
+
+        playerObj = { group, tag, name: state.name || "Player" };
+        remotePlayers.set(id, playerObj);
+      }
+      playerObj.name = state.name || playerObj.name;
+      playerObj.group.position.set(state.pos.x, state.pos.y, state.pos.z);
+      playerObj.group.rotation.y = state.rotY || 0;
+    }
+
+    function removeRemotePlayer(id) {
+      const p = remotePlayers.get(id);
+      if (!p) return;
+      scene.remove(p.group);
+      p.tag.remove();
+      remotePlayers.delete(id);
+    }
+
+    let socket = null;
+    const statusEl = document.getElementById("status");
+    const roomInput = document.getElementById("roomInput");
+    const nameInput = document.getElementById("nameInput");
+    const joinBtn = document.getElementById("joinBtn");
+
+    function connect() {
+      if (socket) socket.disconnect();
+      const roomId = roomInput.value.trim() || "lobby";
+      const playerName = nameInput.value.trim() || "Player";
+      socket = io();
+
+      socket.on("connect", () => {
+        statusEl.textContent = `Connected: ${socket.id} | Room: ${roomId}`;
+        socket.emit("joinRoom", { roomId, name: playerName });
+      });
+      socket.on("disconnect", () => statusEl.textContent = "Disconnected.");
+
+      socket.on("worldState", ({ blocks, players }) => {
+        for (const mesh of blockMeshes.values()) worldRoot.remove(mesh);
+        blockMeshes.clear();
+        worldBlocks.clear();
+        blocks.forEach((b) => setBlock(b.x, b.y, b.z, b.blockTypeIndex, true));
+        Object.entries(players).forEach(([id, st]) => { if (id !== socket.id) upsertRemotePlayer(id, st); });
+      });
+
+      socket.on("blockSet", (b) => setBlock(b.x, b.y, b.z, b.blockTypeIndex, true));
+      socket.on("blockRemoved", (b) => removeBlock(b.x, b.y, b.z, true));
+      socket.on("playerState", ({ id, state }) => { if (id !== socket.id) upsertRemotePlayer(id, state); });
+      socket.on("playerLeft", ({ id }) => removeRemotePlayer(id));
+    }
+
+    joinBtn.addEventListener("click", connect);
+
+    const texBtn = document.getElementById("texBtn");
+    const textureInput = document.getElementById("textureInput");
+    texBtn.addEventListener("click", () => textureInput.click());
+    textureInput.addEventListener("change", () => {
+      const file = textureInput.files?.[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      textureLoader.load(url, (tex) => {
+        BLOCK_TYPES[selectedBlock].customTexture = tex;
+        for (const [k, t] of worldBlocks.entries()) {
+          if (t === selectedBlock) {
+            const [x, y, z] = k.split(",").map(Number);
+            setBlock(x, y, z, selectedBlock, true);
+          }
+        }
+      });
+    });
+
+    const clock = new THREE.Clock();
+    function tick() {
+      const dt = Math.min(0.05, clock.getDelta());
+      const speed = player.speed * (move.sneak ? 0.45 : 1);
+
+      player.direction.set(0, 0, 0);
+      if (move.f) player.direction.z -= 1;
+      if (move.b) player.direction.z += 1;
+      if (move.l) player.direction.x -= 1;
+      if (move.r) player.direction.x += 1;
+      player.direction.normalize();
+
+      if (controls.isLocked) {
+        controls.moveRight(player.direction.x * speed * dt);
+        controls.moveForward(player.direction.z * speed * dt);
+      }
+
+      player.velocity.y -= 24 * dt;
+      if (player.onGround && move.jump) {
+        player.velocity.y = 8;
+        player.onGround = false;
+      }
+
+      camera.position.y += player.velocity.y * dt;
+      if (camera.position.y < 2.8) {
+        camera.position.y = 2.8;
+        player.velocity.y = 0;
+        player.onGround = true;
+      }
+
+      if (socket?.connected) {
+        socket.emit("playerState", {
+          roomId: roomInput.value.trim() || "lobby",
+          state: {
+            name: nameInput.value.trim() || "Player",
+            pos: { x: camera.position.x, y: camera.position.y - 1.2, z: camera.position.z },
+            rotY: controls.getObject().rotation.y
+          }
+        });
+      }
+
+      for (const p of remotePlayers.values()) {
+        const pos = p.group.position.clone().add(new THREE.Vector3(0, 2, 0)).project(camera);
+        const visible = pos.z > -1 && pos.z < 1;
+        p.tag.style.display = visible ? "block" : "none";
+        if (visible) {
+          p.tag.textContent = p.name;
+          p.tag.style.left = `${(pos.x * 0.5 + 0.5) * innerWidth - 24}px`;
+          p.tag.style.top = `${(-pos.y * 0.5 + 0.5) * innerHeight - 35}px`;
+        }
+      }
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(tick);
+    }
+    tick();
+
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
   </script>
 </body>
 </html>
